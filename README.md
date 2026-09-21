@@ -107,6 +107,7 @@ background.js ── this tab ─────────► offscreen.html (hid
 | "Token rejected" | The token was revoked: create a new one in Speakr |
 | Only the other side is in the recording | Settings → **Allow microphone**. If it says *blocked*, allow the microphone for the extension from the lock icon on the settings page. |
 | Whole computer: "No sound was shared" | In the share dialog, choose **Entire screen** and turn on **Share system audio** |
+| Whole computer on Windows: *"Windows would not hand Chrome the computer's sound"* (`NotReadableError`) | The sound output is set to 7.1 surround. Gaming headsets do this (Logitech G HUB, Razer Synapse). Turn surround off, or set the device to **Stereo** in Sound settings → the device → Configure. |
 | Mac: no system audio option | Chrome is older than 141, or it lacks the Screen & System Audio Recording permission (see Install step 4) |
 | "Switch to the meeting tab first" | *Record this tab* records the tab you're looking at; open the meeting tab, then click the extension icon |
 

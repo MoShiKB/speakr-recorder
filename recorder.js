@@ -29,6 +29,18 @@ const fmt = (sec) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
+// Windows refuses Chrome's loopback on some outputs. Seen 2026-09-21 with a
+// Logitech PRO X 2 set to 8 channels (G HUB 7.1 virtual surround): the share
+// dialog completes, then the audio source fails with NotReadableError.
+function captureError(e) {
+  if (e.name === 'NotReadableError') {
+    return 'Windows would not hand Chrome the computer\'s sound. This usually means the '
+      + 'sound output is set to <b>7.1 surround</b> (common on gaming headsets). Switch it to '
+      + '<b>Stereo</b>, or switch the output to another device, then try again.';
+  }
+  return `Chrome could not start the capture (${e.name}: ${e.message}). Try again.`;
+}
+
 async function setWindow(update) {
   const win = await chrome.windows.getCurrent();
   await chrome.windows.update(win.id, update).catch(() => {});
@@ -63,7 +75,7 @@ async function startWithDesktopCapture() {
       video: { mandatory: { ...source.mandatory, maxWidth: 640, maxHeight: 360, maxFrameRate: 1 } },
     });
   } catch (e) {
-    show('idle', `Chrome could not start that capture (${e.name}). Try again.`);
+    show('idle', captureError(e));
     return;
   }
   await begin(display);
@@ -75,7 +87,7 @@ async function startWithDisplayMedia() {
   try {
     display = await navigator.mediaDevices.getDisplayMedia(DISPLAY_OPTIONS);
   } catch (e) {
-    show('idle', e.name === 'NotAllowedError' ? 'Sharing was cancelled. Try again, or Cancel.' : `${e.name}: ${e.message}`);
+    show('idle', e.name === 'NotAllowedError' ? 'Sharing was cancelled. Try again, or Cancel.' : captureError(e));
     return;
   }
   await begin(display);
