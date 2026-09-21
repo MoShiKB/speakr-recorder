@@ -27,7 +27,7 @@ whole-computer sound.
    `git clone https://github.com/BaruchOrg/speakr-recorder.git`
    (on Windows it lives in `%USERPROFILE%\speakr-recorder`).
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click
-   **Load unpacked**, and choose that folder. Pin the red dot to the toolbar.
+   **Load unpacked**, and choose that folder. Pin it to the toolbar (a grey dot; red while recording).
 3. The settings page opens by itself:
    - **API token:** in Speakr, go to **Account → API Tokens → create**, paste it here, then click **Test connection**. It should say "Connected as moshik ✓". Tailscale must be on.
    - **Allow microphone:** click it and allow. Without it, only the other side is recorded.
@@ -42,10 +42,10 @@ Updating: `git pull` in the folder, then click ↻ on the extension in
 
 ## Using it
 
-**Meeting in Chrome:** join the meeting, click the red dot → **Record this tab**.
+**Meeting in Chrome:** join the meeting, click the extension icon → **Record this tab**.
 You keep hearing everything. Stop from the popup, or just close the tab.
 
-**Everything else:** click the red dot → **Record whole computer**. Chrome's
+**Everything else:** click the extension icon → **Record whole computer**. Chrome's
 share dialog opens:
 
 1. Click your screen under **Entire screen**.
@@ -109,7 +109,7 @@ background.js ── this tab ─────────► offscreen.html (hid
 | Only the other side is in the recording | Settings → **Allow microphone**. If it says *blocked*, allow the microphone for the extension from the lock icon on the settings page. |
 | Whole computer: "No sound was shared" | In the share dialog, choose **Entire screen** and turn on **Share system audio** |
 | Mac: no system audio option | Chrome is older than 141, or it lacks the Screen & System Audio Recording permission (see Install step 4) |
-| "Switch to the meeting tab first" | *Record this tab* records the tab you're looking at; open the meeting tab, then click the red dot |
+| "Switch to the meeting tab first" | *Record this tab* records the tab you're looking at; open the meeting tab, then click the extension icon |
 
 ## Test checklist (new computer)
 
