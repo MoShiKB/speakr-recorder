@@ -35,6 +35,19 @@ async function renderWarnings() {
     box.append(el('button', { className: 'warn', onclick: () => chrome.runtime.openOptionsPage() },
       'Add your Speakr API token →'));
   }
+  const { os } = await chrome.runtime.getPlatformInfo();
+  if (os === 'win') {
+    const helper = await toBackground({ type: 'helper-status' });
+    $('screen-hint').textContent = helper?.ok
+      ? 'One click: phone calls, WhatsApp, any app'
+      : 'Through Chrome\'s share dialog';
+    if (!helper?.ok) {
+      box.append(el('button', {
+        className: 'warn',
+        onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL('options.html#helper') }),
+      }, 'Install the Windows helper: whole-computer recording in one click, 7.1 headsets included →'));
+    }
+  }
   const mic = await navigator.permissions.query({ name: 'microphone' }).catch(() => null);
   if (mic && mic.state !== 'granted') {
     box.append(el('button', { className: 'warn', onclick: () => chrome.runtime.openOptionsPage() },

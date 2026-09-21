@@ -5,6 +5,11 @@ import {
 import { getSettings, saveSettings, speakrBase } from './settings.js';
 
 const OFFSCREEN_PATH = 'offscreen.html';
+const HELPER = 'com.baruch.speakr_recorder';
+
+// The native-messaging port to the Windows helper, open only while it records.
+// An open port also keeps this service worker alive for the whole recording.
+let helperPort = null;
 
 // ---- the one active recording; survives service-worker restarts,
 // cleared when Chrome quits (recoverOrphans() handles that case).
@@ -106,7 +111,114 @@ async function startTab(settings, tab) {
   return { ok: true, id };
 }
 
+// Ask the helper for a hello. Resolves with the open port, or ok:false when it
+// is not installed ("Specified native messaging host not found.").
+function probeHelper(timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    let port;
+    try {
+      port = chrome.runtime.connectNative(HELPER);
+    } catch (e) {
+      resolve({ ok: false, error: String(e.message || e) });
+      return;
+    }
+    const timer = setTimeout(() => {
+      port.disconnect();
+      resolve({ ok: false, error: 'The helper did not answer' });
+    }, timeoutMs);
+    const onHello = (msg) => {
+      if (msg?.type !== 'hello') return;
+      clearTimeout(timer);
+      port.onMessage.removeListener(onHello);
+      resolve({ ok: true, info: msg, port });
+    };
+    port.onMessage.addListener(onHello);
+    port.onDisconnect.addListener(() => {
+      clearTimeout(timer);
+      resolve({ ok: false, error: chrome.runtime.lastError?.message || 'The helper closed' });
+    });
+    port.postMessage({ type: 'hello' });
+  });
+}
+
+// Short-lived answer for the popup and settings, so opening the popup does
+// not start the helper every time.
+async function helperStatus({ fresh = false } = {}) {
+  const { helperStatusCache: cached } = await chrome.storage.session.get('helperStatusCache');
+  if (!fresh && cached && Date.now() - cached.at < 60_000) return cached;
+  if (helperPort) return { ok: true, at: Date.now(), info: { busy: true } };
+  const probe = await probeHelper();
+  probe.port?.disconnect();
+  const status = { ok: probe.ok, info: probe.info || null, error: probe.error || null, at: Date.now() };
+  await chrome.storage.session.set({ helperStatusCache: status });
+  return status;
+}
+
 async function startScreen(settings) {
+  const probe = await probeHelper();
+  if (probe.ok) return startWithHelper(settings, probe);
+  return startScreenWindow(settings);
+}
+
+// Windows helper: no dialog, no window. It streams the computer's sound here,
+// this relays it to the offscreen recorder, which adds the mic.
+async function startWithHelper(settings, { port, info }) {
+  const id = `rec-${Date.now()}`;
+  const startedAt = Date.now();
+  await putRecording({
+    id, mode: 'screen', status: 'recording', startedAt, language: settings.language,
+    title: 'Computer audio', source: 'whole computer', sourceLabel: info.device,
+  });
+  await ensureOffscreen();
+  let res = null;
+  for (let i = 0; i < 10 && !res; i++) {
+    try {
+      res = await chrome.runtime.sendMessage({
+        target: 'offscreen', type: 'start-helper', recId: id,
+        micDeviceId: settings.micDeviceId, silenceStopMinutes: settings.silenceStopMinutes,
+      });
+    } catch (e) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  if (!res?.ok) {
+    port.disconnect();
+    await updateRecording(id, { status: 'failed', error: res?.error || 'The recorder did not start' });
+    await closeRecorder({ host: 'offscreen' });
+    throw new Error(res?.error || 'The recorder did not start');
+  }
+
+  helperPort = port;
+  port.onMessage.addListener((msg) => {
+    if (msg.type === 'pcm') {
+      chrome.runtime.sendMessage({ target: 'offscreen', type: 'pcm', data: msg.data }).catch(() => {});
+    } else if (msg.type === 'error') {
+      notify(`helpererr:${id}`, 'The helper stopped recording', msg.message);
+      stop('helper-error');
+    }
+  });
+  // Only fires when the helper side goes away (disconnect() here does not).
+  port.onDisconnect.addListener(() => {
+    helperPort = null;
+    getActive().then((a) => (a?.id === id ? stop('helper-ended') : null));
+  });
+  port.postMessage({ type: 'start', sampleRate: res.sampleRate });
+
+  await updateRecording(id, { micCaptured: res.mic });
+  await setActive({ id, mode: 'screen', host: 'offscreen', via: 'helper', startedAt });
+  setRecordingUi(true);
+  if (res.mic) {
+    notify(`rec:${id}`, 'Recording the whole computer',
+      'Stop it from the Speakr Recorder icon or Alt+Shift+R.');
+  } else {
+    warnNoMic(id);
+  }
+  return { ok: true, id };
+}
+
+// Chrome's share dialog in a window: the route on the Mac, and on Windows
+// when the helper is not installed.
+async function startScreenWindow(settings) {
   const id = `rec-${Date.now()}`;
   await putRecording({
     id, mode: 'screen', status: 'starting', startedAt: Date.now(), language: settings.language,
@@ -133,6 +245,11 @@ async function stop(reason = 'manual') {
   if (active.starting) {
     await cancelScreen(active);
     return { ok: true };
+  }
+  if (helperPort) {
+    helperPort.postMessage({ type: 'stop' });
+    helperPort.disconnect();
+    helperPort = null;
   }
   const target = active.host === 'window' ? { target: 'recorder', recId: active.id } : { target: 'offscreen' };
   if (await isLive(active)) {
@@ -238,6 +355,12 @@ async function send(id) {
 // drop never-started ones, release uploads that were cut off mid-flight.
 async function recoverOrphans() {
   const active = await getActive();
+  // A helper recording whose port died with the old service worker would go on
+  // recording only the mic: stop it and keep what was captured.
+  if (active?.via === 'helper' && !helperPort) {
+    await stop('helper-lost');
+    return;
+  }
   const live = await isLive(active);
   if (active && !live) await setActive(null);
   for (const rec of await listRecordings()) {
@@ -269,6 +392,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
     case 'state':
       reply(getActive().then((active) => ({ ok: true, active })));
+      return true;
+    case 'helper-status':
+      reply(helperStatus({ fresh: Boolean(msg.fresh) }));
       return true;
     case 'screen-started':
       reply((async () => {

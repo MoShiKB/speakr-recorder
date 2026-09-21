@@ -78,6 +78,55 @@ async function allowMic() {
   await micState();
 }
 
+// ---------------------------------------------------------------- helper
+async function helperUi() {
+  const { os } = await chrome.runtime.getPlatformInfo();
+  if (os !== 'win') return;  // the Mac records the whole computer through Chrome itself
+  $('helper-section').hidden = false;
+  $('helper-state').className = '';
+  $('helper-state').textContent = 'Checking…';
+  const st = await chrome.runtime.sendMessage({ target: 'background', type: 'helper-status', fresh: true });
+  if (st?.ok) {
+    $('helper-state').className = 'good';
+    $('helper-state').textContent = st.info?.busy
+      ? 'Installed ✓ (recording right now)'
+      : `Installed ✓ Records ${st.info?.device || 'the default output'}.`;
+    $('helper-download').textContent = 'Download installer again';
+    $('helper-steps').hidden = true;
+  } else {
+    $('helper-state').className = 'error';
+    $('helper-state').textContent = /not found/i.test(st?.error || '')
+      ? 'Not installed yet.'
+      : `Not working: ${st?.error || 'no answer'}`;
+    $('helper-download').textContent = 'Download installer';
+    $('helper-steps').hidden = false;
+  }
+}
+
+// One self-contained .cmd: a batch header that hands the rest of the file to
+// PowerShell, then install.ps1 with the helper embedded as base64.
+async function downloadInstaller() {
+  const text = (path) => fetch(chrome.runtime.getURL(path)).then((r) => r.text());
+  const [py, ps] = await Promise.all([text('helper/windows/speakr_helper.py'), text('helper/windows/install.ps1')]);
+  const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(py)));
+  const cmd = [
+    '@echo off',
+    'echo Installing the Speakr Recorder helper...',
+    "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$s=[IO.File]::ReadAllText('%~f0'); $i=$s.LastIndexOf('#'+'PS1-BEGIN'); & ([ScriptBlock]::Create($s.Substring($i)))\"",
+    'echo.',
+    'pause',
+    'exit /b',
+    '#PS1-BEGIN',
+    `$HelperPy = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}'))`,
+    ps.replace(/\r?\n/g, '\r\n'),
+  ].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([cmd], { type: 'application/octet-stream' }));
+  a.download = 'Install Speakr Recorder helper.cmd';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30_000);
+}
+
 async function init() {
   const s = await getSettings();
   $('speakrUrl').value = s.speakrUrl;
@@ -110,8 +159,13 @@ async function init() {
   const [cmd] = await chrome.commands.getAll();
   if (cmd?.shortcut) $('shortcut').textContent = cmd.shortcut;
 
+  $('helper-download').onclick = downloadInstaller;
+  $('helper-check').onclick = helperUi;
+
   await micState();
   if (s.token) testConnection();
+  helperUi();
+  if (location.hash === '#helper') $('helper-section').scrollIntoView();
 }
 
 init();

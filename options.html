@@ -67,6 +67,24 @@
     <p>Keyboard shortcut: <b id="shortcut">not set</b> · <a id="shortcuts" href="#">change</a></p>
   </section>
 
+  <section id="helper-section" hidden>
+    <h2>5. Windows helper</h2>
+    <p class="muted">Records the whole computer with one click (no share dialog), and works
+      with 7.1 surround headsets, where Chrome's own route cannot record the sound.</p>
+    <p id="helper-state">Checking…</p>
+    <div class="row">
+      <button id="helper-download" class="primary">Download installer</button>
+      <button id="helper-check">Check again</button>
+    </div>
+    <ol id="helper-steps" class="muted">
+      <li>Open the downloaded <b>Install Speakr Recorder helper.cmd</b>.</li>
+      <li>If Windows says it protected your PC: <b>More info → Run anyway</b>.</li>
+      <li>Wait for "Installed", press a key to close, then click <b>Check again</b>.</li>
+    </ol>
+    <p class="muted">Needs Python 3.9+ (the installer tells you if it is missing). To remove it, run
+      <code>helper\windows\uninstall.ps1</code> from the repo.</p>
+  </section>
+
   <script type="module" src="options.js"></script>
 </body>
 </html>

@@ -32,7 +32,14 @@ whole-computer sound.
    - **API token:** in Speakr, go to **Account → API Tokens → create**, paste it here, then click **Test connection**. It should say "Connected as moshik ✓". Tailscale must be on.
    - **Allow microphone:** click it and allow. Without it, only the other side is recorded.
    - **After a recording stops:** send automatically, or keep it in the list until you press Send.
-4. **Mac only:** the first time you record the whole computer, macOS asks to let
+4. **Windows only: install the helper.** In the settings page, **Windows helper →
+   Download installer**, open the downloaded `Install Speakr Recorder helper.cmd`
+   (if Windows warns: **More info → Run anyway**), then click **Check again**.
+   It needs Python 3.9+. With it, *Record whole computer* is one click, with no
+   share dialog and no window, and it works with 7.1 surround headsets, where
+   Chrome's own route cannot record the sound. Without it, Chrome's share dialog
+   is used.
+5. **Mac only:** the first time you record the whole computer, macOS asks to let
    Chrome record the screen and system audio. Allow it in
    **System Settings → Privacy & Security → Screen & System Audio Recording**,
    then quit and reopen Chrome.
@@ -45,8 +52,10 @@ Updating: `git pull` in the folder, then click ↻ on the extension in
 **Meeting in Chrome:** join the meeting, click the extension icon → **Record this tab**.
 You keep hearing everything. Stop from the popup, or just close the tab.
 
-**Everything else:** click the extension icon → **Record whole computer**. Chrome's
-share dialog opens:
+**Everything else:** click the extension icon → **Record whole computer**.
+
+- **Windows with the helper:** that's it. It records right away, with no dialog and no window.
+- **Mac, or Windows without the helper:** Chrome's share dialog opens:
 
 1. Click your screen under **Entire screen**.
 2. Keep **Share with system audio** on. Without it there is no sound, and a notification tells you so.
@@ -85,8 +94,12 @@ popup / Alt+Shift+R
 background.js ── this tab ─────────► offscreen.html (hidden)
    │             tabCapture stream     tab audio + mic ───────┐
    │                                                          ├─► recorder-core.js
+   ├──────────── whole computer ───► offscreen.html (hidden)  │
+   │             Windows helper        helper PCM + mic ──────┤
+   │               (native messaging, PCM relayed by background.js)
    └──────────── whole computer ───► recorder.html (minimized)│
-                 desktopCapture        system audio + mic ────┘
+                 no helper / Mac:      system audio + mic ────┘
+                 desktopCapture
                                             │ Opus/WebM, 10 s chunks
                                             ▼
                                   IndexedDB (db.js)
@@ -97,6 +110,8 @@ background.js ── this tab ─────────► offscreen.html (hid
 
 - **Tab mode:** Chrome mutes a captured tab for the user, so the recorder plays it back through an AudioContext. That's why you still hear the meeting.
 - **Whole-computer mode:** runs in a real window. `chrome.desktopCapture` opens Chrome's share dialog immediately, and its stream can only be used by the page that asked for it. `getDisplayMedia` wasn't usable: Chrome rejects it without a click, whether from the hidden document or from a freshly opened window. It stays in the window as a manual fallback. The mandatory video track runs at 1 fps and is never recorded.
+- **Windows helper** (`helper/windows/`): a Python native-messaging host (`com.baruch.speakr_recorder`). It records the default output through WASAPI loopback and sends 16-bit mono PCM in 250 ms messages at the recorder's sample rate. `pcm-worklet.js` plays that into the mix. Chrome's own loopback fails with `NotReadableError` on 8-channel outputs; WASAPI through `soundcard` records them fine (tested 2026-09-21 on a Logitech PRO X 2 in G HUB 7.1). The installer puts it in `%LOCALAPPDATA%\SpeakrRecorder`, with a venv and a `.bat` launcher, and registers it under `HKCU\Software\Google\Chrome\NativeMessagingHosts`. `uninstall.ps1` removes both.
+- **Fixed extension ID** `maddoidjgjmojmknbchikbilcedkmgdc`: the `key` in `manifest.json` pins it, so the helper's `allowed_origins` matches on every computer, whatever folder the extension was loaded from.
 - **Speakr address:** `speakr.example.com` is allowed at install. Any other address asks for permission when you click Test connection.
 
 ## Troubleshooting
@@ -107,7 +122,8 @@ background.js ── this tab ─────────► offscreen.html (hid
 | "Token rejected" | The token was revoked: create a new one in Speakr |
 | Only the other side is in the recording | Settings → **Allow microphone**. If it says *blocked*, allow the microphone for the extension from the lock icon on the settings page. |
 | Whole computer: "No sound was shared" | In the share dialog, choose **Entire screen** and turn on **Share system audio** |
-| Whole computer on Windows: *"Windows would not hand Chrome the computer's sound"* (`NotReadableError`) | The sound output is set to 7.1 surround. Gaming headsets do this (Logitech G HUB, Razer Synapse). Turn surround off, or set the device to **Stereo** in Sound settings → the device → Configure. |
+| Whole computer on Windows: *"Windows would not hand Chrome the computer's sound"* (`NotReadableError`) | The sound output is 7.1 surround (G HUB, Razer Synapse). Install the **Windows helper**, which handles 7.1, or set the output to Stereo. |
+| Settings: helper *"Not working: …"* | Run `helper\windows\install.ps1` again. `Specified native messaging host not found` means it isn't registered. |
 | Mac: no system audio option | Chrome is older than 141, or it lacks the Screen & System Audio Recording permission (see Install step 4) |
 | "Switch to the meeting tab first" | *Record this tab* records the tab you're looking at; open the meeting tab, then click the extension icon |
 

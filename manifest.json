@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Speakr Recorder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Record a meeting tab or the whole computer (plus your mic) and send it to Speakr for a Hebrew transcript and summary.",
   "permissions": [
     "tabCapture",
@@ -9,7 +9,8 @@
     "storage",
     "notifications",
     "activeTab",
-    "desktopCapture"
+    "desktopCapture",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://speakr.example.com/*"
@@ -46,5 +47,6 @@
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2MrgUEkFyLZch4QPYr9dK6USHnq0+Isf0i2bgVvnyUQfTgQ9mU5bzbWxURUXACE12kcjWuUSBUkGx3txbk7izrbSkHuCTtxvfZaV8GAOj3Z/NEOy6dlAXaxsHPGYOK2cwg1w6akcciDpntYx/CGG8FH7Kz53gvA1tRCCPp+LDvYQG6d63PFbu3YdRrwF1ov8qlpXb6881JwHsYmU29WY+1izmtKiE8DSe++4iedJWQ30GW9+IHXA0E8DZvHVXGofblX8Y81CaCX4TOUIQ+Y9CkuNpxI6hUe0e/zrcwcK/Y84Y8bGD3LVyh5RST7bsOLX3p49M6vV6oGJh8qTAd4OQwIDAQAB"
 }

@@ -1,5 +1,5 @@
-// The recording engine shared by both capture paths: the hidden offscreen
-// document (tab mode) and the recorder window (whole-computer mode).
+// The recording engine shared by every capture path: tab mode and the Windows
+// helper (both in the hidden offscreen document) and the share-dialog window.
 // It mixes the captured source with the microphone into one Opus/WebM file.
 
 import { putChunk, updateRecording, assembleChunks } from './db.js';
@@ -39,10 +39,11 @@ export async function getMic(deviceId) {
 }
 
 export class Session {
-  // source: MediaStream with the other side's audio.
+  // The other side's audio comes either as a MediaStream (source) or as a node
+  // built on this session's AudioContext (makeSource, used for helper PCM).
   // playSource: tabCapture mutes the tab for the user, so route it back out.
-  constructor({ recId, source, mic, playSource, silenceStopMinutes, onAutoStop }) {
-    Object.assign(this, { recId, source, mic, playSource, silenceStopMinutes, onAutoStop });
+  constructor({ recId, source, makeSource, mic, playSource, silenceStopMinutes, onAutoStop }) {
+    Object.assign(this, { recId, source, makeSource, mic, playSource, silenceStopMinutes, onAutoStop });
     this.seq = 0;
     this.writes = Promise.resolve();
     this.stopping = null;
@@ -56,8 +57,10 @@ export class Session {
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
 
-    if (this.source.getAudioTracks().length) {
-      const src = ctx.createMediaStreamSource(this.source);
+    let src = null;
+    if (this.makeSource) src = await this.makeSource(ctx);
+    else if (this.source?.getAudioTracks().length) src = ctx.createMediaStreamSource(this.source);
+    if (src) {
       src.connect(dest);
       src.connect(analyser);
       if (this.playSource) src.connect(ctx.destination);
@@ -84,7 +87,7 @@ export class Session {
     this.startedAt = Date.now();
 
     // Closing the tab, or Chrome's "Stop sharing" bar, ends the source.
-    for (const track of this.source.getTracks()) {
+    for (const track of this.source?.getTracks() || []) {
       track.addEventListener('ended', () => this.autoStop('source-ended'), { once: true });
     }
 
@@ -119,7 +122,7 @@ export class Session {
       await done;
     }
     await this.writes;
-    for (const track of [...this.source.getTracks(), ...(this.mic?.getTracks() || [])]) track.stop();
+    for (const track of [...(this.source?.getTracks() || []), ...(this.mic?.getTracks() || [])]) track.stop();
     await this.ctx?.close().catch(() => {});
 
     const blob = await assembleChunks(this.recId);
