@@ -3,7 +3,9 @@
 $ErrorActionPreference = 'Stop'
 
 $HostName    = 'com.baruch.speakr_recorder'
-$ExtensionId = 'maddoidjgjmojmknbchikbilcedkmgdc'   # pinned by "key" in manifest.json
+# Extensions allowed to start the helper: the unpacked copy (ID pinned by "key"
+# in manifest.json) and the Chrome Web Store item.
+$ExtensionIds = @('maddoidjgjmojmknbchikbilcedkmgdc')
 $Dir         = Join-Path $env:LOCALAPPDATA 'SpeakrRecorder'
 
 # Python 3.9+ from the py launcher, else python on PATH.
@@ -46,7 +48,7 @@ $manifest = Join-Path $Dir "$HostName.json"
     description     = 'Speakr Recorder: streams the computer''s sound to the extension'
     path            = $launcher
     type            = 'stdio'
-    allowed_origins = @("chrome-extension://$ExtensionId/")
+    allowed_origins = @($ExtensionIds | ForEach-Object { "chrome-extension://$_/" })
 } | ConvertTo-Json | ForEach-Object {
     # No BOM: Windows PowerShell's UTF8 adds one, and Chrome must parse this file.
     [IO.File]::WriteAllText($manifest, $_, (New-Object Text.UTF8Encoding $false))
