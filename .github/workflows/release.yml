@@ -55,11 +55,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Skipped until the item exists and the CHROME_* secrets are set.
+      # Skipped until every CHROME_* secret is set.
       - name: Upload to Chrome Web Store
-        if: env.EXTENSION_ID != ''
+        if: env.EXTENSION_ID != '' && env.PUBLISHER_ID != '' && env.CLIENT_ID != '' && env.CLIENT_SECRET != '' && env.REFRESH_TOKEN != ''
         run: npx -y chrome-webstore-upload-cli upload --source dist/speakr-recorder-${{ steps.version.outputs.version }}.zip
 
       - name: Publish to Chrome Web Store
-        if: env.EXTENSION_ID != ''
+        if: env.EXTENSION_ID != '' && env.PUBLISHER_ID != '' && env.CLIENT_ID != '' && env.CLIENT_SECRET != '' && env.REFRESH_TOKEN != ''
         run: npx -y chrome-webstore-upload-cli publish

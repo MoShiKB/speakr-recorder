@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $HostName    = 'com.baruch.speakr_recorder'
 # Extensions allowed to start the helper: the unpacked copy (ID pinned by "key"
 # in manifest.json) and the Chrome Web Store item.
-$ExtensionIds = @('maddoidjgjmojmknbchikbilcedkmgdc')
+$ExtensionIds = @('maddoidjgjmojmknbchikbilcedkmgdc', 'oedfhekaioihehbnhhpcokekpfbennop')
 $Dir         = Join-Path $env:LOCALAPPDATA 'SpeakrRecorder'
 
 # Python 3.9+ from the py launcher, else python on PATH.
