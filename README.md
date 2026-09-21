@@ -52,10 +52,10 @@ share dialog opens:
 2. Keep **Share with system audio** on. Without it there is no sound, and a notification tells you so.
 3. Press **Share with Audio**.
 
-Nothing else stays on screen. Stop from the popup, with `Alt+Shift+R`, or with
-Chrome's "Stop sharing" bar. The screen image is never saved, only the sound.
-If Chrome ever refuses to show the dialog directly, a small window asks
-instead, and it minimizes itself once you've chosen.
+A small Speakr window sits behind the dialog, and it minimizes itself as soon as
+you've shared. A notification confirms the recording, and the icon turns red.
+Stop from the icon, with `Alt+Shift+R`, or with Chrome's "Stop sharing" bar.
+The screen image is never saved, only the sound.
 
 **The icon** is grey when idle, and red with a **REC** badge while recording.
 
@@ -85,9 +85,8 @@ popup / Alt+Shift+R
 background.js ── this tab ─────────► offscreen.html (hidden)
    │             tabCapture stream     tab audio + mic ───────┐
    │                                                          ├─► recorder-core.js
-   └──────────── whole computer ───► offscreen.html (hidden)  │
-                 getDisplayMedia       system audio + mic ────┘
-                 (fallback: recorder.html window)
+   └──────────── whole computer ───► recorder.html (minimized)│
+                 desktopCapture        system audio + mic ────┘
                                             │ Opus/WebM, 10 s chunks
                                             ▼
                                   IndexedDB (db.js)
@@ -97,7 +96,7 @@ background.js ── this tab ─────────► offscreen.html (hid
 ```
 
 - **Tab mode:** Chrome mutes a captured tab for the user, so the recorder plays it back through an AudioContext. That's why you still hear the meeting.
-- **Whole-computer mode:** asks for the share dialog from the same hidden document (offscreen reason `DISPLAY_MEDIA`). If Chrome won't show it from there, it falls back to `recorder.html`, a visible window. The dialog's mandatory video track runs at 1 fps and is never recorded.
+- **Whole-computer mode:** runs in a real window. `chrome.desktopCapture` opens Chrome's share dialog immediately, and its stream can only be used by the page that asked for it. `getDisplayMedia` wasn't usable: Chrome rejects it without a click, whether from the hidden document or from a freshly opened window. It stays in the window as a manual fallback. The mandatory video track runs at 1 fps and is never recorded.
 - **Speakr address:** `speakr.example.com` is allowed at install. Any other address asks for permission when you click Test connection.
 
 ## Troubleshooting

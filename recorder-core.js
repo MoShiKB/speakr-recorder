@@ -1,5 +1,5 @@
 // The recording engine shared by both capture paths: the hidden offscreen
-// document (tab and whole-computer mode) and the fallback recorder window.
+// document (tab mode) and the recorder window (whole-computer mode).
 // It mixes the captured source with the microphone into one Opus/WebM file.
 
 import { putChunk, updateRecording, assembleChunks } from './db.js';

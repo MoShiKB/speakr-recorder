@@ -24,13 +24,13 @@ async function ensureOffscreen() {
   if (await hasOffscreen()) return;
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_PATH,
-    reasons: ['USER_MEDIA', 'DISPLAY_MEDIA'],
-    justification: 'Record the meeting tab or the computer audio, plus the microphone',
+    reasons: ['USER_MEDIA'],
+    justification: 'Record the meeting tab and the microphone',
   });
 }
 
-// active.host: where the capture stream lives. 'offscreen' for tab mode and
-// normally for whole-computer mode; 'window' only for the fallback window.
+// active.host: where the capture stream lives. 'offscreen' (hidden) for tab
+// mode, 'window' (recorder.html) for whole-computer mode.
 async function isLive(active) {
   if (!active) return false;
   if (active.host === 'window') return chrome.windows.get(active.windowId).then(() => true, () => false);
@@ -112,34 +112,13 @@ async function startScreen(settings) {
     id, mode: 'screen', status: 'starting', startedAt: Date.now(), language: settings.language,
     title: 'Computer audio', source: 'whole computer',
   });
-  await setActive({ id, mode: 'screen', host: 'offscreen', starting: true, startedAt: null });
-  // Chrome's share dialog opens straight from the hidden document, so no window
-  // of ours is needed. The outcome comes back as screen-started, -cancelled,
-  // -no-audio or -needs-window.
-  await ensureOffscreen();
-  for (let i = 0; i < 10; i++) {
-    try {
-      await chrome.runtime.sendMessage({
-        target: 'offscreen', type: 'start-screen', recId: id,
-        micDeviceId: settings.micDeviceId, silenceStopMinutes: settings.silenceStopMinutes,
-      });
-      return { ok: true, id };
-    } catch (e) {
-      await new Promise((r) => setTimeout(r, 150));
-    }
-  }
-  await openRecorderWindow(await getActive());
-  return { ok: true, id };
-}
-
-// Fallback when Chrome will not show the share dialog from the hidden
-// document: a visible window asks instead, then minimizes itself.
-async function openRecorderWindow(active) {
-  if (await hasOffscreen()) await chrome.offscreen.closeDocument();
+  // Large enough for Chrome's share dialog, which draws inside this window;
+  // the window minimizes itself once recording.
   const win = await chrome.windows.create({
-    url: `recorder.html?recId=${active.id}`, type: 'popup', width: 860, height: 700, focused: true,
+    url: `recorder.html?recId=${id}`, type: 'popup', width: 860, height: 700, focused: true,
   });
-  await setActive({ ...active, host: 'window', windowId: win.id });
+  await setActive({ id, mode: 'screen', host: 'window', windowId: win.id, starting: true, startedAt: null });
+  return { ok: true, id };
 }
 
 function warnNoMic(id) {
@@ -299,17 +278,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await updateRecording(msg.recId, { status: 'recording', startedAt, micCaptured: msg.mic });
         await setActive({ ...active, starting: false, startedAt });
         setRecordingUi(true);
-        if (!msg.mic) warnNoMic(msg.recId);
+        if (msg.mic) {
+          notify(`rec:${msg.recId}`, 'Recording the whole computer',
+            'Stop it from the Speakr Recorder icon or Alt+Shift+R.');
+        } else {
+          warnNoMic(msg.recId);
+        }
         return { ok: true };
       })());
-      return true;
-    case 'screen-needs-window':
-      reply(getActive().then((a) => (a?.id === msg.recId && a.host === 'offscreen' ? openRecorderWindow(a) : null)).then(() => ({ ok: true })));
-      return true;
-    case 'screen-no-audio':
-      notify(`noaudio:${msg.recId}`, 'Nothing recorded',
-        'No sound was shared. Choose Entire screen and turn on "Share system audio".');
-      reply(getActive().then((a) => (a?.id === msg.recId ? cancelScreen(a) : null)).then(() => ({ ok: true })));
       return true;
     case 'screen-cancelled':
       reply(getActive().then((a) => (a?.id === msg.recId ? cancelScreen(a) : null)).then(() => ({ ok: true })));

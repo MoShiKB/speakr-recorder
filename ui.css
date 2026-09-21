@@ -99,16 +99,24 @@ body.popup header { margin-bottom: 10px; }
 footer { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 
 /* ---- whole-computer recorder window */
-body.recorder { padding: 14px 16px; }
-body.recorder main p { margin: 10px 0; }
-body.recorder .actions { margin: 12px 0; }
-body.recorder .hint { font-size: 12px; color: var(--muted); }
-body.recorder:not([data-state=recording]) .rec-live,
-body.recorder:not([data-state=recording]) #stop,
+body.recorder { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+body.recorder .card { width: min(460px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+body.recorder header { margin-bottom: 12px; }
+body.recorder h1 { font-size: 18px; }
+body.recorder ol { margin: 0 0 12px; padding-left: 20px; font-size: 14px; line-height: 1.8; }
+body.recorder #message:empty { display: none; }
+body.recorder .actions { display: flex; gap: 8px; margin: 14px 0 10px; }
+body.recorder .hint { font-size: 12px; color: var(--muted); margin: 0; }
+/* choosing: steps only (Chrome's dialog is open) · idle: retry · recording: timer + Stop */
+body.recorder[data-state=choosing] #choose,
+body.recorder[data-state=choosing] #stop,
+body.recorder[data-state=idle] #stop,
+body.recorder[data-state=recording] #steps,
 body.recorder[data-state=recording] #choose,
 body.recorder[data-state=recording] #cancel,
+body.recorder[data-state=saving] #steps,
 body.recorder[data-state=saving] .actions,
-body.recorder[data-state=choosing] #choose { display: none; }
+body.recorder:not([data-state=recording]) .rec-live { display: none; }
 
 /* ---- options */
 body.options { max-width: 560px; margin: 24px auto; padding: 0 16px 40px; }

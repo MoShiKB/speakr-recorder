@@ -8,7 +8,8 @@
     "offscreen",
     "storage",
     "notifications",
-    "activeTab"
+    "activeTab",
+    "desktopCapture"
   ],
   "host_permissions": [
     "https://speakr.example.com/*"

@@ -1,6 +1,11 @@
-// Whole-computer mode. getDisplayMedia needs a visible page, so this runs in a
-// small window the background opens. Chrome's share dialog with "Share system
-// audio" captures every app: Windows always, macOS 14.2+ with Chrome 141+.
+// Whole-computer mode. The background opens this window; it asks Chrome for the
+// share dialog, then minimizes itself for the length of the recording.
+//
+// chrome.desktopCapture opens the dialog straight away. getDisplayMedia would
+// not: Chrome rejects it without a click on this page, and the hidden
+// offscreen document has no way to get one. getDisplayMedia stays as the
+// fallback behind a button, for a dialog that offered no sound (it is the
+// path Chrome 141+ documents for system audio on macOS).
 
 import { getMic, Session, DISPLAY_OPTIONS } from './recorder-core.js';
 import { getSettings } from './settings.js';
@@ -12,9 +17,9 @@ let tick = null;
 
 const toBackground = (msg) => chrome.runtime.sendMessage({ target: 'background', recId, ...msg });
 
-function show(state, message) {
+function show(state, message = '') {
   document.body.dataset.state = state;
-  if (message) $('message').innerHTML = message;
+  $('message').innerHTML = message;
 }
 
 const fmt = (sec) => {
@@ -24,35 +29,64 @@ const fmt = (sec) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-// Fallback only: the background opens this window when Chrome would not show
-// the share dialog from the hidden offscreen document. Chrome draws the dialog
-// inside this window, so it must be large while choosing (at 420x320 the
-// screen thumbnails were cut off and Share stayed disabled); once recording it
-// gets out of the way.
 async function setWindow(update) {
   const win = await chrome.windows.getCurrent();
   await chrome.windows.update(win.id, update).catch(() => {});
 }
 
-async function choose() {
-  show('choosing', 'Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.');
-  await setWindow({ state: 'normal', width: 860, height: 700 });
+function pickWithDesktopCapture() {
+  return new Promise((resolve) => {
+    chrome.desktopCapture.chooseDesktopMedia(['screen', 'audio'], (streamId, options) => {
+      resolve({ streamId, canAudio: Boolean(options?.canRequestAudioTrack) });
+    });
+  });
+}
+
+async function startWithDesktopCapture() {
+  show('choosing');
+  const { streamId, canAudio } = await pickWithDesktopCapture();
+  if (!streamId) {
+    // Cancel in Chrome's dialog cancels the whole thing.
+    toBackground({ type: 'screen-cancelled' });
+    return;
+  }
+  if (!canAudio) {
+    show('idle', 'That share had no sound. Try again and keep <b>Share system audio</b> on.');
+    return;
+  }
+  const source = { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: streamId } };
+  let display;
+  try {
+    display = await navigator.mediaDevices.getUserMedia({
+      audio: source,
+      // Chrome only hands out desktop audio together with video; keep it tiny.
+      video: { mandatory: { ...source.mandatory, maxWidth: 640, maxHeight: 360, maxFrameRate: 1 } },
+    });
+  } catch (e) {
+    show('idle', `Chrome could not start that capture (${e.name}). Try again.`);
+    return;
+  }
+  await begin(display);
+}
+
+async function startWithDisplayMedia() {
+  show('choosing');
   let display;
   try {
     display = await navigator.mediaDevices.getDisplayMedia(DISPLAY_OPTIONS);
   } catch (e) {
-    show('idle', e.name === 'NotAllowedError'
-      ? 'Sharing was cancelled. Choose again, or Cancel.'
-      : 'Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.');
+    show('idle', e.name === 'NotAllowedError' ? 'Sharing was cancelled. Try again, or Cancel.' : `${e.name}: ${e.message}`);
     return;
   }
+  await begin(display);
+}
 
+async function begin(display) {
   if (!display.getAudioTracks().length) {
     display.getTracks().forEach((t) => t.stop());
-    show('idle', 'No sound was shared. Choose <b>Entire screen</b> and turn <b>Share system audio</b> on.');
+    show('idle', 'No sound was shared. Try again and keep <b>Share system audio</b> on.');
     return;
   }
-
   const settings = await getSettings();
   const mic = await getMic(settings.micDeviceId);
   session = new Session({
@@ -64,12 +98,12 @@ async function choose() {
     onAutoStop: (result) => finish(result),
   });
   await session.start();
-  setWindow({ state: 'minimized' });
   const startedAt = Date.now();
   $('mic').textContent = mic ? 'your mic: on' : 'your mic: OFF';
   tick = setInterval(() => { $('elapsed').textContent = fmt(Math.round((Date.now() - startedAt) / 1000)); }, 500);
   show('recording', 'Recording everything this computer plays, plus your microphone.');
   await toBackground({ type: 'screen-started', mic: Boolean(mic) });
+  setWindow({ state: 'minimized' });
 }
 
 async function finish(result) {
@@ -79,7 +113,7 @@ async function finish(result) {
   await toBackground({ type: 'finished', ...result });
 }
 
-$('choose').addEventListener('click', choose);
+$('choose').addEventListener('click', startWithDisplayMedia);
 $('stop').addEventListener('click', async () => {
   if (!session) return;
   const s = session;
@@ -103,6 +137,4 @@ window.addEventListener('beforeunload', (e) => {
   if (session) e.preventDefault();
 });
 
-// Chrome may open the share dialog straight away; if it wants a click first,
-// the button is already there.
-choose();
+startWithDesktopCapture();

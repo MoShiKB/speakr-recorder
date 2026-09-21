@@ -2,17 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Speakr Recorder</title>
+  <title>Speakr Recorder: whole computer</title>
   <link rel="stylesheet" href="ui.css">
 </head>
-<body class="recorder" data-state="idle">
-  <header>
-    <img src="icons/icon32.png" alt="" width="20" height="20">
-    <strong>Whole computer</strong>
-  </header>
+<body class="recorder" data-state="choosing">
+  <main class="card">
+    <header>
+      <img src="icons/icon48.png" alt="" width="36" height="36">
+      <h1>Record whole computer</h1>
+    </header>
 
-  <main>
-    <p id="message">Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.</p>
+    <ol id="steps">
+      <li>Click your screen under <b>Entire Screen</b></li>
+      <li>Keep <b>Share system audio</b> on</li>
+      <li>Press <b>Share</b></li>
+    </ol>
+
+    <p id="message"></p>
 
     <div class="rec-live">
       <span class="dot"></span>
@@ -26,7 +32,8 @@
       <button id="cancel">Cancel</button>
     </div>
 
-    <p class="hint">You can minimize this window while recording. Closing it stops the recording.</p>
+    <p class="hint">This window minimizes itself while recording. Stop from the
+      extension icon, <b>Alt+Shift+R</b>, or Chrome's "Stop sharing" bar.</p>
   </main>
 
   <script type="module" src="recorder.js"></script>
