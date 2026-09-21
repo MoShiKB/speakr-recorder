@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Speakr Recorder settings</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="options">
+  <header>
+    <img src="icons/icon48.png" alt="" width="32" height="32">
+    <h1>Speakr Recorder</h1>
+    <span id="saved" class="muted" hidden>Saved</span>
+  </header>
+
+  <section>
+    <h2>1. Connect to Speakr</h2>
+    <label>Speakr address
+      <input id="speakrUrl" type="url" placeholder="https://speakr.example.com">
+    </label>
+    <label>API token
+      <input id="token" type="password" autocomplete="off" placeholder="Speakr → Account → API Tokens → create">
+    </label>
+    <div class="row">
+      <button id="test" class="primary">Test connection</button>
+      <span id="test-result"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Microphone</h2>
+    <p class="muted">Your own voice comes from the microphone; the other side comes from the tab or the computer.</p>
+    <div class="row">
+      <button id="allow-mic" class="primary">Allow microphone</button>
+      <span id="mic-state"></span>
+    </div>
+    <label>Microphone to use
+      <select id="micDeviceId"><option value="">System default</option></select>
+    </label>
+  </section>
+
+  <section>
+    <h2>3. After a recording stops</h2>
+    <label class="radio"><input type="radio" name="afterStop" value="auto">
+      <span><b>Send to Speakr automatically</b><br>
+      <small class="muted">If sending fails, it waits in the list with a Send button.</small></span>
+    </label>
+    <label class="radio"><input type="radio" name="afterStop" value="manual">
+      <span><b>Keep it in the list; I press Send</b><br>
+      <small class="muted">Nothing leaves the computer until you choose.</small></span>
+    </label>
+    <label class="check"><input id="deleteAfterSend" type="checkbox">
+      Delete the local copy once Speakr has it
+    </label>
+  </section>
+
+  <section>
+    <h2>4. Defaults</h2>
+    <label>Language
+      <select id="language">
+        <option value="he">Hebrew</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+    <label>Stop by itself after this many minutes of silence (0 = never)
+      <input id="silenceStopMinutes" type="number" min="0" max="120" step="1">
+    </label>
+    <p>Keyboard shortcut: <b id="shortcut">not set</b> · <a id="shortcuts" href="#">change</a></p>
+  </section>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

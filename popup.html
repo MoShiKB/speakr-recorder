@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Speakr Recorder</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="popup">
+  <header>
+    <img src="icons/icon32.png" alt="" width="20" height="20">
+    <strong>Speakr Recorder</strong>
+    <button id="settings" class="icon" title="Settings">⚙</button>
+  </header>
+
+  <section id="warnings"></section>
+
+  <section id="live" hidden>
+    <div class="rec-live">
+      <span class="dot"></span>
+      <span id="elapsed">00:00</span>
+      <span id="live-title" class="ellipsis"></span>
+    </div>
+    <button id="stop" class="danger wide">Stop</button>
+  </section>
+
+  <section id="idle">
+    <button id="rec-tab" class="primary wide">
+      <span>Record this tab</span>
+      <small id="tab-hint">Meet, Zoom or Teams in Chrome</small>
+    </button>
+    <button id="rec-screen" class="wide">
+      <span>Record whole computer</span>
+      <small>Phone calls, FaceTime, WhatsApp, any app</small>
+    </button>
+    <label class="row">
+      Language
+      <select id="language">
+        <option value="he">Hebrew</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+  </section>
+
+  <p id="error" class="error" hidden></p>
+
+  <h2>Recordings</h2>
+  <ul id="list"></ul>
+  <p id="empty" class="muted">Nothing recorded yet.</p>
+
+  <footer>
+    <a id="open-speakr" href="#">Open Speakr</a>
+    <span class="muted" id="shortcut"></span>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

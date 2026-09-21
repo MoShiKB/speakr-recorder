@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Speakr Recorder</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="recorder" data-state="idle">
+  <header>
+    <img src="icons/icon32.png" alt="" width="20" height="20">
+    <strong>Whole computer</strong>
+  </header>
+
+  <main>
+    <p id="message">Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.</p>
+
+    <div class="rec-live">
+      <span class="dot"></span>
+      <span id="elapsed">00:00</span>
+      <span id="mic" class="muted"></span>
+    </div>
+
+    <div class="actions">
+      <button id="choose" class="primary">Choose what to share</button>
+      <button id="stop" class="danger">Stop</button>
+      <button id="cancel">Cancel</button>
+    </div>
+
+    <p class="hint">You can minimize this window while recording. Closing it stops the recording.</p>
+  </main>
+
+  <script type="module" src="recorder.js"></script>
+</body>
+</html>
