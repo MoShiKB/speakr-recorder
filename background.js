@@ -20,20 +20,35 @@ async function hasOffscreen() {
   return contexts.length > 0;
 }
 
+async function ensureOffscreen() {
+  if (await hasOffscreen()) return;
+  await chrome.offscreen.createDocument({
+    url: OFFSCREEN_PATH,
+    reasons: ['USER_MEDIA', 'DISPLAY_MEDIA'],
+    justification: 'Record the meeting tab or the computer audio, plus the microphone',
+  });
+}
+
+// active.host: where the capture stream lives. 'offscreen' for tab mode and
+// normally for whole-computer mode; 'window' only for the fallback window.
 async function isLive(active) {
   if (!active) return false;
-  if (active.mode === 'tab') return hasOffscreen();
-  return chrome.windows.get(active.windowId).then(() => true, () => false);
+  if (active.host === 'window') return chrome.windows.get(active.windowId).then(() => true, () => false);
+  return hasOffscreen();
 }
 
 async function closeRecorder(active) {
-  if (active?.mode === 'tab' && (await hasOffscreen())) await chrome.offscreen.closeDocument();
-  if (active?.mode === 'screen') await chrome.windows.remove(active.windowId).catch(() => {});
+  if (active?.host === 'window') await chrome.windows.remove(active.windowId).catch(() => {});
+  else if (await hasOffscreen()) await chrome.offscreen.closeDocument();
 }
 
-function setBadge(on) {
+// Grey icon when idle; red icon + REC badge while recording.
+function setRecordingUi(on) {
+  const icon = (n) => `icons/${on ? 'icon' : 'idle'}${n}.png`;
+  chrome.action.setIcon({ path: { 16: icon(16), 32: icon(32), 48: icon(48) } });
   chrome.action.setBadgeText({ text: on ? 'REC' : '' });
-  if (on) chrome.action.setBadgeBackgroundColor({ color: '#dc2626' });
+  chrome.action.setBadgeBackgroundColor({ color: '#dc2626' });
+  chrome.action.setTitle({ title: on ? 'Speakr Recorder: recording (click to stop)' : 'Speakr Recorder' });
 }
 
 function notify(id, title, message) {
@@ -62,13 +77,7 @@ async function startTab(settings, tab) {
     title: cleanTitle(tab), source: new URL(tab.url).hostname,
   });
 
-  if (!(await hasOffscreen())) {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_PATH,
-      reasons: ['USER_MEDIA'],
-      justification: 'Record the meeting tab and the microphone',
-    });
-  }
+  await ensureOffscreen();
   let res = null;
   let lastError = null;
   // createDocument can resolve a moment before the offscreen listener exists.
@@ -86,13 +95,13 @@ async function startTab(settings, tab) {
   if (!res?.ok) {
     const error = res?.error || String(lastError?.message || 'The recorder did not start');
     await updateRecording(id, { status: 'failed', error });
-    await closeRecorder({ mode: 'tab' });
+    await closeRecorder({ host: 'offscreen' });
     throw new Error(error);
   }
 
   await updateRecording(id, { micCaptured: res.mic });
-  await setActive({ id, mode: 'tab', tabId: tab.id, startedAt: Date.now() });
-  setBadge(true);
+  await setActive({ id, mode: 'tab', host: 'offscreen', tabId: tab.id, startedAt: Date.now() });
+  setRecordingUi(true);
   if (!res.mic) warnNoMic(id);
   return { ok: true, id };
 }
@@ -103,11 +112,34 @@ async function startScreen(settings) {
     id, mode: 'screen', status: 'starting', startedAt: Date.now(), language: settings.language,
     title: 'Computer audio', source: 'whole computer',
   });
-  const win = await chrome.windows.create({
-    url: `recorder.html?recId=${id}`, type: 'popup', width: 860, height: 700, focused: true,
-  });
-  await setActive({ id, mode: 'screen', windowId: win.id, starting: true, startedAt: null });
+  await setActive({ id, mode: 'screen', host: 'offscreen', starting: true, startedAt: null });
+  // Chrome's share dialog opens straight from the hidden document, so no window
+  // of ours is needed. The outcome comes back as screen-started, -cancelled,
+  // -no-audio or -needs-window.
+  await ensureOffscreen();
+  for (let i = 0; i < 10; i++) {
+    try {
+      await chrome.runtime.sendMessage({
+        target: 'offscreen', type: 'start-screen', recId: id,
+        micDeviceId: settings.micDeviceId, silenceStopMinutes: settings.silenceStopMinutes,
+      });
+      return { ok: true, id };
+    } catch (e) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  await openRecorderWindow(await getActive());
   return { ok: true, id };
+}
+
+// Fallback when Chrome will not show the share dialog from the hidden
+// document: a visible window asks instead, then minimizes itself.
+async function openRecorderWindow(active) {
+  if (await hasOffscreen()) await chrome.offscreen.closeDocument();
+  const win = await chrome.windows.create({
+    url: `recorder.html?recId=${active.id}`, type: 'popup', width: 860, height: 700, focused: true,
+  });
+  await setActive({ ...active, host: 'window', windowId: win.id });
 }
 
 function warnNoMic(id) {
@@ -123,7 +155,7 @@ async function stop(reason = 'manual') {
     await cancelScreen(active);
     return { ok: true };
   }
-  const target = active.mode === 'tab' ? { target: 'offscreen' } : { target: 'recorder', recId: active.id };
+  const target = active.host === 'window' ? { target: 'recorder', recId: active.id } : { target: 'offscreen' };
   if (await isLive(active)) {
     try {
       await chrome.runtime.sendMessage({ ...target, type: 'stop', reason });
@@ -143,7 +175,7 @@ async function cancelScreen(active) {
 
 async function afterStop(active, reason) {
   await setActive(null);
-  setBadge(false);
+  setRecordingUi(false);
   await closeRecorder(active);
   await settle(active.id, reason);
 }
@@ -237,7 +269,7 @@ async function recoverOrphans() {
       await updateRecording(rec.id, { status: 'failed', error: 'The upload was interrupted' });
     }
   }
-  setBadge(live && !active.starting);
+  setRecordingUi(Boolean(live && !active.starting));
 }
 
 // ---------------------------------------------------------------- wiring
@@ -266,10 +298,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const startedAt = Date.now();
         await updateRecording(msg.recId, { status: 'recording', startedAt, micCaptured: msg.mic });
         await setActive({ ...active, starting: false, startedAt });
-        setBadge(true);
+        setRecordingUi(true);
         if (!msg.mic) warnNoMic(msg.recId);
         return { ok: true };
       })());
+      return true;
+    case 'screen-needs-window':
+      reply(getActive().then((a) => (a?.id === msg.recId && a.host === 'offscreen' ? openRecorderWindow(a) : null)).then(() => ({ ok: true })));
+      return true;
+    case 'screen-no-audio':
+      notify(`noaudio:${msg.recId}`, 'Nothing recorded',
+        'No sound was shared. Choose Entire screen and turn on "Share system audio".');
+      reply(getActive().then((a) => (a?.id === msg.recId ? cancelScreen(a) : null)).then(() => ({ ok: true })));
       return true;
     case 'screen-cancelled':
       reply(getActive().then((a) => (a?.id === msg.recId ? cancelScreen(a) : null)).then(() => ({ ok: true })));
@@ -302,7 +342,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // The recorder window was closed by hand.
 chrome.windows.onRemoved.addListener(async (windowId) => {
   const active = await getActive();
-  if (active?.mode !== 'screen' || active.windowId !== windowId) return;
+  if (active?.host !== 'window' || active.windowId !== windowId) return;
   if (active.starting) await cancelScreen(active);
   else await afterStop(active, 'window-closed');
 });

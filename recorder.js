@@ -2,7 +2,7 @@
 // small window the background opens. Chrome's share dialog with "Share system
 // audio" captures every app: Windows always, macOS 14.2+ with Chrome 141+.
 
-import { getMic, Session } from './recorder-core.js';
+import { getMic, Session, DISPLAY_OPTIONS } from './recorder-core.js';
 import { getSettings } from './settings.js';
 
 const recId = new URLSearchParams(location.search).get('recId');
@@ -24,32 +24,22 @@ const fmt = (sec) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-// Chrome draws its share dialog inside this window, so the window must be
-// large while choosing: at 420x320 the screen thumbnails were cut off and
-// "Share" stayed disabled. Shrink it again once recording.
-const SIZE_CHOOSING = { width: 860, height: 700 };
-const SIZE_RECORDING = { width: 420, height: 300 };
-
-async function resize(size) {
+// Fallback only: the background opens this window when Chrome would not show
+// the share dialog from the hidden offscreen document. Chrome draws the dialog
+// inside this window, so it must be large while choosing (at 420x320 the
+// screen thumbnails were cut off and Share stayed disabled); once recording it
+// gets out of the way.
+async function setWindow(update) {
   const win = await chrome.windows.getCurrent();
-  await chrome.windows.update(win.id, { state: 'normal', ...size }).catch(() => {});
+  await chrome.windows.update(win.id, update).catch(() => {});
 }
 
 async function choose() {
   show('choosing', 'Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.');
-  await resize(SIZE_CHOOSING);
+  await setWindow({ state: 'normal', width: 860, height: 700 });
   let display;
   try {
-    display = await navigator.mediaDevices.getDisplayMedia({
-      // Video is mandatory for getDisplayMedia; keep it as cheap as possible.
-      video: { displaySurface: 'monitor', frameRate: 1, width: { max: 640 }, height: { max: 360 } },
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      systemAudio: 'include',
-      monitorTypeSurfaces: 'include',
-      selfBrowserSurface: 'exclude',
-      surfaceSwitching: 'exclude',
-      preferCurrentTab: false,
-    });
+    display = await navigator.mediaDevices.getDisplayMedia(DISPLAY_OPTIONS);
   } catch (e) {
     show('idle', e.name === 'NotAllowedError'
       ? 'Sharing was cancelled. Choose again, or Cancel.'
@@ -74,7 +64,7 @@ async function choose() {
     onAutoStop: (result) => finish(result),
   });
   await session.start();
-  resize(SIZE_RECORDING);
+  setWindow({ state: 'minimized' });
   const startedAt = Date.now();
   $('mic').textContent = mic ? 'your mic: on' : 'your mic: OFF';
   tick = setInterval(() => { $('elapsed').textContent = fmt(Math.round((Date.now() - startedAt) / 1000)); }, 500);

@@ -1,5 +1,5 @@
 // The recording engine shared by both capture paths: the hidden offscreen
-// document (tab mode) and the small recorder window (whole-computer mode).
+// document (tab and whole-computer mode) and the fallback recorder window.
 // It mixes the captured source with the microphone into one Opus/WebM file.
 
 import { putChunk, updateRecording, assembleChunks } from './db.js';
@@ -8,6 +8,18 @@ const CHUNK_MS = 10_000;
 // RMS below this counts as silence. Speech sits around 0.02-0.2; noise-
 // suppressed mic hiss and an idle call stay under 0.005.
 const SILENCE_RMS = 0.004;
+
+// Chrome's share dialog, preset to the whole screen with system audio. Video is
+// mandatory for getDisplayMedia; it is kept tiny and never recorded.
+export const DISPLAY_OPTIONS = {
+  video: { displaySurface: 'monitor', frameRate: 1, width: { max: 640 }, height: { max: 360 } },
+  audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  systemAudio: 'include',
+  monitorTypeSurfaces: 'include',
+  selfBrowserSurface: 'exclude',
+  surfaceSwitching: 'exclude',
+  preferCurrentTab: false,
+};
 
 export async function getMic(deviceId) {
   const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };

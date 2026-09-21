@@ -45,15 +45,19 @@ Updating: `git pull` in the folder, then click ↻ on the extension in
 **Meeting in Chrome:** join the meeting, click the red dot → **Record this tab**.
 You keep hearing everything. Stop from the popup, or just close the tab.
 
-**Everything else:** click the red dot → **Record whole computer**. A small
-window opens with Chrome's share dialog:
+**Everything else:** click the red dot → **Record whole computer**. Chrome's
+share dialog opens:
 
-1. Choose **Entire screen**.
-2. Turn on **Share system audio**. Without it there is no sound, and the window tells you so.
-3. Press **Share**.
+1. Click your screen under **Entire screen**.
+2. Keep **Share with system audio** on. Without it there is no sound, and a notification tells you so.
+3. Press **Share with Audio**.
 
-Minimize the small window and stop from it, from the popup, or with Chrome's
-"Stop sharing" bar. The screen image is never saved, only the sound.
+Nothing else stays on screen. Stop from the popup, with `Alt+Shift+R`, or with
+Chrome's "Stop sharing" bar. The screen image is never saved, only the sound.
+If Chrome ever refuses to show the dialog directly, a small window asks
+instead, and it minimizes itself once you've chosen.
+
+**The icon** is grey when idle, and red with a **REC** badge while recording.
 
 **After Stop**, depending on the setting:
 
@@ -79,10 +83,11 @@ popup / Alt+Shift+R
    │
    ▼
 background.js ── this tab ─────────► offscreen.html (hidden)
-   │             tabCapture stream     tab audio + mic → recorder-core.js
-   │
-   └──────────── whole computer ───► recorder.html (small window)
-                 getDisplayMedia        system audio + mic → recorder-core.js
+   │             tabCapture stream     tab audio + mic ───────┐
+   │                                                          ├─► recorder-core.js
+   └──────────── whole computer ───► offscreen.html (hidden)  │
+                 getDisplayMedia       system audio + mic ────┘
+                 (fallback: recorder.html window)
                                             │ Opus/WebM, 10 s chunks
                                             ▼
                                   IndexedDB (db.js)
@@ -92,7 +97,7 @@ background.js ── this tab ─────────► offscreen.html (hid
 ```
 
 - **Tab mode:** Chrome mutes a captured tab for the user, so the recorder plays it back through an AudioContext. That's why you still hear the meeting.
-- **Whole-computer mode:** runs in a visible window, because Chrome only shows the share dialog from a visible page. Its video track runs at 1 fps and is never recorded.
+- **Whole-computer mode:** asks for the share dialog from the same hidden document (offscreen reason `DISPLAY_MEDIA`). If Chrome won't show it from there, it falls back to `recorder.html`, a visible window. The dialog's mandatory video track runs at 1 fps and is never recorded.
 - **Speakr address:** `speakr.example.com` is allowed at install. Any other address asks for permission when you click Test connection.
 
 ## Troubleshooting
