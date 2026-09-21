@@ -34,12 +34,13 @@ const fmt = (sec) => {
 // dialog completes, then the audio source fails with NotReadableError. The
 // 8-channel format is the suspected cause, pending a stereo retest.
 function captureError(e) {
-  if (e.name === 'NotReadableError') {
+  const raw = `<br><small class="muted">Chrome said: ${e.name}: ${e.message}</small>`;
+  if (e.name === 'NotReadableError' && /audio/i.test(e.message)) {
     return 'Windows would not hand Chrome the computer\'s sound. This usually means the '
       + 'sound output is set to <b>7.1 surround</b> (common on gaming headsets). Switch it to '
-      + '<b>Stereo</b>, or switch the output to another device, then try again.';
+      + '<b>Stereo</b>, or switch the output to another device, then try again.' + raw;
   }
-  return `Chrome could not start the capture (${e.name}: ${e.message}). Try again.`;
+  return `Chrome could not start the capture. Try again.${raw}`;
 }
 
 async function setWindow(update) {
