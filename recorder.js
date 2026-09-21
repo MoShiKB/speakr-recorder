@@ -48,6 +48,19 @@ async function setWindow(update) {
   await chrome.windows.update(win.id, update).catch(() => {});
 }
 
+// Shrink first, so the window stays small even if Windows refuses to minimize
+// it, then minimize; check and retry, since it was seen staying open.
+async function tuckAway() {
+  const { id } = await chrome.windows.getCurrent();
+  await chrome.windows.update(id, { state: 'normal', width: 380, height: 280 }).catch(() => {});
+  for (const wait of [150, 700, 2000]) {
+    await new Promise((r) => setTimeout(r, wait));
+    await chrome.windows.update(id, { state: 'minimized' }).catch(() => {});
+    const win = await chrome.windows.get(id).catch(() => null);
+    if (!win || win.state === 'minimized') return;
+  }
+}
+
 function pickWithDesktopCapture() {
   return new Promise((resolve) => {
     chrome.desktopCapture.chooseDesktopMedia(['screen', 'audio'], (streamId, options) => {
@@ -116,8 +129,8 @@ async function begin(display) {
   $('mic').textContent = mic ? 'your mic: on' : 'your mic: OFF';
   tick = setInterval(() => { $('elapsed').textContent = fmt(Math.round((Date.now() - startedAt) / 1000)); }, 500);
   show('recording', 'Recording everything this computer plays, plus your microphone.');
-  await toBackground({ type: 'screen-started', mic: Boolean(mic) });
-  setWindow({ state: 'minimized' });
+  tuckAway();
+  toBackground({ type: 'screen-started', mic: Boolean(mic) }).catch(() => {});
 }
 
 async function finish(result) {
