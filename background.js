@@ -104,7 +104,7 @@ async function startScreen(settings) {
     title: 'Computer audio', source: 'whole computer',
   });
   const win = await chrome.windows.create({
-    url: `recorder.html?recId=${id}`, type: 'popup', width: 420, height: 320, focused: true,
+    url: `recorder.html?recId=${id}`, type: 'popup', width: 860, height: 700, focused: true,
   });
   await setActive({ id, mode: 'screen', windowId: win.id, starting: true, startedAt: null });
   return { ok: true, id };

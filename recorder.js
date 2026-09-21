@@ -24,8 +24,20 @@ const fmt = (sec) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
+// Chrome draws its share dialog inside this window, so the window must be
+// large while choosing: at 420x320 the screen thumbnails were cut off and
+// "Share" stayed disabled. Shrink it again once recording.
+const SIZE_CHOOSING = { width: 860, height: 700 };
+const SIZE_RECORDING = { width: 420, height: 300 };
+
+async function resize(size) {
+  const win = await chrome.windows.getCurrent();
+  await chrome.windows.update(win.id, { state: 'normal', ...size }).catch(() => {});
+}
+
 async function choose() {
   show('choosing', 'Pick <b>Entire screen</b>, turn on <b>Share system audio</b>, then press <b>Share</b>.');
+  await resize(SIZE_CHOOSING);
   let display;
   try {
     display = await navigator.mediaDevices.getDisplayMedia({
@@ -62,6 +74,7 @@ async function choose() {
     onAutoStop: (result) => finish(result),
   });
   await session.start();
+  resize(SIZE_RECORDING);
   const startedAt = Date.now();
   $('mic').textContent = mic ? 'your mic: on' : 'your mic: OFF';
   tick = setInterval(() => { $('elapsed').textContent = fmt(Math.round((Date.now() - startedAt) / 1000)); }, 500);
