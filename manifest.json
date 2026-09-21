@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Speakr Recorder",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Record a meeting tab or the whole computer (plus your mic) and send it to Speakr for a Hebrew transcript and summary.",
   "permissions": [
     "tabCapture",
