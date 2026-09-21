@@ -29,9 +29,10 @@ const fmt = (sec) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-// Windows refuses Chrome's loopback on some outputs. Seen 2026-09-21 with a
+// Windows refuses Chrome's loopback on some outputs. Hit 2026-09-21 on a
 // Logitech PRO X 2 set to 8 channels (G HUB 7.1 virtual surround): the share
-// dialog completes, then the audio source fails with NotReadableError.
+// dialog completes, then the audio source fails with NotReadableError. The
+// 8-channel format is the suspected cause, pending a stereo retest.
 function captureError(e) {
   if (e.name === 'NotReadableError') {
     return 'Windows would not hand Chrome the computer\'s sound. This usually means the '
