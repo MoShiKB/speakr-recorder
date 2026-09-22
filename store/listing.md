@@ -37,7 +37,7 @@ Record meeting or computer audio together with the user's microphone and upload 
 - `storage`: saves the user's settings (server address, API token, preferences).
 - `notifications`: tells the user when a recording started, stopped or was sent, or when sending failed.
 - `activeTab`: identifies the tab the user asked to record.
-- Host permission `https://speakr.example.com/*` (and optional hosts): uploads recordings to the user's Speakr server. A different server address is only allowed after the user grants it in the settings.
+- Optional host permission: uploads recordings to the user's own Speakr server. The extension has no host permission until the user enters their server address and grants it from the settings page.
 
 **Remote code:** No, I am not using remote code.
 

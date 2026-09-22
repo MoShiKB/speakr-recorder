@@ -12,9 +12,6 @@
     "desktopCapture",
     "nativeMessaging"
   ],
-  "host_permissions": [
-    "https://speakr.example.com/*"
-  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

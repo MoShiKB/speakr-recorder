@@ -1,7 +1,7 @@
 # Speakr Recorder
 
 A Chrome extension that records a meeting or a call with one click and sends it
-to [Speakr](https://speakr.example.com), which turns it into a Hebrew transcript
+to [Speakr](https://github.com/murtaza-nasir/speakr), which turns it into a Hebrew transcript
 with speakers, a summary and action items. It works the same way on Windows and
 on the Mac.
 
@@ -25,7 +25,7 @@ whole-computer sound.
 
 1. Get the folder:
    `git clone https://github.com/BaruchOrg/speakr-recorder.git`
-   (on Windows it lives in `%USERPROFILE%\speakr-recorder`).
+   Keep it somewhere stable; Chrome loads the extension from that folder.
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click
    **Load unpacked**, and choose that folder. Pin it to the toolbar (a grey dot; red while recording).
 3. The settings page opens by itself:
@@ -112,7 +112,7 @@ background.js ── this tab ─────────► offscreen.html (hid
 - **Whole-computer mode:** runs in a real window. `chrome.desktopCapture` opens Chrome's share dialog immediately, and its stream can only be used by the page that asked for it. `getDisplayMedia` wasn't usable: Chrome rejects it without a click, whether from the hidden document or from a freshly opened window. It stays in the window as a manual fallback. The mandatory video track runs at 1 fps and is never recorded.
 - **Windows helper** (`helper/windows/`): a Python native-messaging host (`com.baruch.speakr_recorder`). It records the default output through WASAPI loopback and sends 16-bit mono PCM in 250 ms messages at the recorder's sample rate. `pcm-worklet.js` plays that into the mix. Chrome's own loopback fails with `NotReadableError` on 8-channel outputs; WASAPI through `soundcard` records them fine (tested 2026-09-21 on a Logitech PRO X 2 in G HUB 7.1). The installer puts it in `%LOCALAPPDATA%\SpeakrRecorder`, with a venv and a `.bat` launcher, and registers it under `HKCU\Software\Google\Chrome\NativeMessagingHosts`. `uninstall.ps1` removes both.
 - **Fixed extension ID** `maddoidjgjmojmknbchikbilcedkmgdc`: the `key` in `manifest.json` pins it, so the helper's `allowed_origins` matches on every computer, whatever folder the extension was loaded from.
-- **Speakr address:** `speakr.example.com` is allowed at install. Any other address asks for permission when you click Test connection.
+- **Speakr address:** entered in the settings. The extension ships with no host permission; pressing Test connection asks Chrome for access to that address.
 
 ## Troubleshooting
 

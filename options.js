@@ -15,8 +15,8 @@ async function save(patch) {
 }
 
 // Speakr sends no CORS headers; the extension reaches it through a host
-// permission. speakr.example.com is granted at install, any other address is
-// requested here (the click on Test counts as the required user gesture).
+// permission, requested here for whatever address the user entered (the click
+// on Test counts as the required user gesture).
 async function ensureHostPermission(url) {
   const origins = [`${new URL(url).origin}/*`];
   if (await chrome.permissions.contains({ origins })) return true;
@@ -29,6 +29,7 @@ async function testConnection() {
   out.textContent = 'Testing…';
   const settings = await getSettings();
   try {
+    if (!settings.speakrUrl) throw new Error('Enter your Speakr address first');
     if (!settings.token) throw new Error('Paste an API token first');
     if (!(await ensureHostPermission(settings.speakrUrl))) throw new Error('Permission to reach that address was refused');
     const r = await fetch(`${speakrBase(settings)}/api/v1/users/me`, {
@@ -136,7 +137,7 @@ async function init() {
   $('deleteAfterSend').checked = s.deleteAfterSend;
   document.querySelector(`input[name=afterStop][value=${s.afterStop}]`).checked = true;
 
-  $('speakrUrl').onchange = (e) => save({ speakrUrl: e.target.value.trim() || 'https://speakr.example.com' });
+  $('speakrUrl').onchange = (e) => save({ speakrUrl: e.target.value.trim() });
   $('token').onchange = (e) => save({ token: e.target.value.trim() });
   $('token').onfocus = (e) => { e.target.type = 'text'; };
   $('token').onblur = (e) => { e.target.type = 'password'; };
@@ -150,7 +151,7 @@ async function init() {
 
   $('test').onclick = async () => {
     // Commit whatever is typed before testing it.
-    await saveSettings({ speakrUrl: $('speakrUrl').value.trim() || s.speakrUrl, token: $('token').value.trim() });
+    await saveSettings({ speakrUrl: $('speakrUrl').value.trim(), token: $('token').value.trim() });
     testConnection();
   };
   $('allow-mic').onclick = allowMic;

@@ -1,5 +1,6 @@
 export const DEFAULTS = {
-  speakrUrl: 'https://speakr.example.com',
+  // Set in the options page; the extension has no server of its own.
+  speakrUrl: '',
   token: '',
   language: 'he',
   // 'auto': send when the recording stops; if that fails it waits in the list.

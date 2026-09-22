@@ -31,9 +31,9 @@ function showError(text) {
 async function renderWarnings() {
   const box = $('warnings');
   box.replaceChildren();
-  if (!settings.token) {
+  if (!settings.speakrUrl || !settings.token) {
     box.append(el('button', { className: 'warn', onclick: () => chrome.runtime.openOptionsPage() },
-      'Add your Speakr API token →'));
+      settings.speakrUrl ? 'Add your Speakr API token →' : 'Set your Speakr address and token →'));
   }
   const { os } = await chrome.runtime.getPlatformInfo();
   if (os === 'win') {
@@ -216,7 +216,11 @@ async function init() {
     renderList();
   };
   $('settings').onclick = () => chrome.runtime.openOptionsPage();
-  $('open-speakr').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: speakrBase(settings) }); };
+  $('open-speakr').onclick = (e) => {
+    e.preventDefault();
+    if (settings.speakrUrl) chrome.tabs.create({ url: speakrBase(settings) });
+    else chrome.runtime.openOptionsPage();
+  };
 
   const [cmd] = await chrome.commands.getAll();
   $('shortcut').textContent = cmd?.shortcut ? `${cmd.shortcut} starts/stops` : '';

@@ -310,10 +310,18 @@ async function send(id) {
   if (!rec) return { ok: false, error: 'Recording not found' };
   const blob = await getAudio(id);
   if (!blob) return { ok: false, error: 'The audio is no longer stored' };
-  if (!settings.token) {
-    await updateRecording(id, { status: 'failed', error: 'No Speakr API token in the options' });
-    notify(`notoken:${id}`, 'Not sent', 'Set your Speakr API token in the extension options, then press Send.');
-    return { ok: false, error: 'No token' };
+  if (!settings.speakrUrl || !settings.token) {
+    const what = settings.speakrUrl ? 'API token' : 'server address';
+    await updateRecording(id, { status: 'failed', error: `No Speakr ${what} in the options` });
+    notify(`notoken:${id}`, 'Not sent', `Set your Speakr ${what} in the extension options, then press Send.`);
+    return { ok: false, error: `No ${what}` };
+  }
+  // Without the host permission the fetch fails with a bare "Failed to fetch".
+  if (!(await chrome.permissions.contains({ origins: [`${speakrBase(settings)}/*`] }))) {
+    const error = 'Open the settings and press Test connection to allow this address';
+    await updateRecording(id, { status: 'failed', error });
+    notify(`notoken:${id}`, 'Not sent', error);
+    return { ok: false, error };
   }
 
   await updateRecording(id, { status: 'sending', sendingSince: Date.now(), error: null });
