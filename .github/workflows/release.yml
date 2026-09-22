@@ -55,11 +55,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Skipped until every CHROME_* secret is set.
-      - name: Upload to Chrome Web Store
+      # The store refuses a new upload while a version is in review; the next
+      # push after approval publishes the latest code anyway.
+      - name: Check review state
+        id: review
         if: env.EXTENSION_ID != '' && env.PUBLISHER_ID != '' && env.CLIENT_ID != '' && env.CLIENT_SECRET != '' && env.REFRESH_TOKEN != ''
+        run: |
+          token=$(curl -sf https://oauth2.googleapis.com/token \
+            -d client_id="$CLIENT_ID" -d client_secret="$CLIENT_SECRET" \
+            -d refresh_token="$REFRESH_TOKEN" -d grant_type=refresh_token | jq -r .access_token)
+          state=$(curl -s -H "Authorization: Bearer $token" \
+            "https://chromewebstore.googleapis.com/v2/publishers/$PUBLISHER_ID/items/$EXTENSION_ID:fetchStatus" \
+            | jq -r '.submittedItemRevisionStatus.state // "NONE"')
+          echo "Submitted revision: $state"
+          if [ "$state" = PENDING_REVIEW ]; then
+            echo "::notice::A version is in review; this one is released on GitHub only."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Skipped until every CHROME_* secret is set, and while a review is pending.
+      - name: Upload to Chrome Web Store
+        if: steps.review.outputs.publish == 'true'
         run: npx -y chrome-webstore-upload-cli upload --source dist/speakr-recorder-${{ steps.version.outputs.version }}.zip
 
       - name: Publish to Chrome Web Store
-        if: env.EXTENSION_ID != '' && env.PUBLISHER_ID != '' && env.CLIENT_ID != '' && env.CLIENT_SECRET != '' && env.REFRESH_TOKEN != ''
+        if: steps.review.outputs.publish == 'true'
         run: npx -y chrome-webstore-upload-cli publish
