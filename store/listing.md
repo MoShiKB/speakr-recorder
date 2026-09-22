@@ -44,7 +44,9 @@ Record meeting or computer audio together with the user's microphone and upload 
 **Data usage:** check **Personal communications** (audio recordings) and **Authentication information** (the user's Speakr API token, stored locally).
 Certify all three: not sold to third parties; not used for purposes unrelated to the single purpose; not used for creditworthiness or lending.
 
-**Privacy policy URL:** the public URL of store/privacy-policy.md (see README → Publishing).
+**Privacy policy URL:** https://gist.github.com/MoShiKB/726a62afdc78767482d40cade3fc25f4
+(a secret gist holding store/privacy-policy.md: unlisted, but readable without signing in,
+so it keeps working if this repo goes private. Edit the gist when the policy changes.)
 
 ## Distribution tab
 
